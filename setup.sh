@@ -1,7 +1,13 @@
 #!/bin/bash
 
 CURDIR=$(cd `dirname $0` && pwd)
-WDIR="$CURDIR/live"
+
+if [ -z "$1" ]; then
+	echo "Usage: $0 <target directory>"
+	exit 1
+else
+	WDIR="$CURDIR/$1"
+fi
 CHRDIR="$WDIR/chroot"
 
 # Make sure only root can run our script
