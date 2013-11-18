@@ -97,6 +97,10 @@ function load_inside_chroot
 if [ "$1" == "--inside-chroot" ]; then
 	shift
 	load_inside_chroot $*
+elif [ -n "$1" ]
+	CHRDIR="$1/chroot"; shift
+	load_chroot "$CHRDIR" $*
 else
-	load_chroot $*
+	echo "Usage: $0 <target directory>"
+	exit 1
 fi
