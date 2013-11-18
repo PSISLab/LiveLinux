@@ -30,7 +30,7 @@ function load_chroot
 	CMDRESULT=$?
 	
 	# Unbind /dev from chroot envionment
-	umount "$CHRDIR/dev"
+	umount -l "$CHRDIR/dev"
 	
 	return $CMDRESULT
 }

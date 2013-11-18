@@ -43,7 +43,7 @@ function setup_chroot
 
 # Setup chroot
 if [ ! -d "$CHRDIR" ]; then
-	setup_chroot || rm -rf "$CHRDIR" && exit 1
+	setup_chroot || ( rm -rf "$CHRDIR" && exit 1 )
 fi
 
 # Install mandatory packages
