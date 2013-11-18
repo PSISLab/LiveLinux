@@ -26,6 +26,7 @@ function load_chroot
 	chmod +x "$CHRDIR$CHRSCRIPT" || return 1
 	
 	# Load chroot
+	echo chroot chroot "$CHRSCRIPT" --inside-chroot $*
 	chroot "$CHRDIR" "$CHRSCRIPT" --inside-chroot $*
 	CMDRESULT=$?
 	

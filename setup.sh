@@ -1,14 +1,6 @@
 #!/bin/bash
 
-CURDIR=$(cd `dirname $0` && pwd)
-
-if [ -z "$1" ]; then
-	echo "Usage: $0 <target directory>"
-	exit 1
-else
-	WDIR="$CURDIR/$1"
-fi
-CHRDIR="$WDIR/chroot"
+CURDIR="$(cd `dirname $0` && pwd)"
 
 # Make sure only root can run our script
 if [[ $EUID -ne 0 ]]; then
@@ -16,13 +8,18 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+if [ -z "$1" ]; then
+	echo "Usage: $0 <target directory>"
+	exit 1
+else
+	WDIR="$(cd "$1" && pwd)" || exit 1
+fi
+CHRDIR="$WDIR/chroot"
+
 # create working directory
 if [ ! -d "$WDIR" ]; then
 	mkdir -p "$WDIR" || exit 1
 fi
-
-# Go to working directory
-cd "$WDIR"
 
 # Install debootstrap
 apt-get install --yes debootstrap || exit 1
@@ -47,4 +44,4 @@ if [ ! -d "$CHRDIR" ]; then
 fi
 
 # Install mandatory packages
-"${CURDIR}/load-chroot.sh" "$CHRDIR" apt-get install --yes ubuntu-standard casper lupin-casper discover laptop-detect os-prober linux-generic || exit 1
+"${CURDIR}/load-chroot.sh" "$WDIR" apt-get install --yes ubuntu-standard casper lupin-casper discover laptop-detect os-prober linux-generic || exit 1
