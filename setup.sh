@@ -11,15 +11,15 @@ fi
 if [ -z "$1" ]; then
 	echo "Usage: $0 <target directory>"
 	exit 1
-else
-	WDIR="$(cd "$1" && pwd)" || exit 1
 fi
-CHRDIR="$WDIR/chroot"
 
 # create working directory
-if [ ! -d "$WDIR" ]; then
-	mkdir -p "$WDIR" || exit 1
+if [ ! -d "$1" ]; then
+	mkdir -p "$1" || exit 1
 fi
+
+WDIR="$(cd "$1" && pwd)" || exit 1
+CHRDIR="$WDIR/chroot"
 
 # Install debootstrap
 apt-get install --yes debootstrap || exit 1
