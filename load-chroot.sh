@@ -26,7 +26,7 @@ function load_chroot
 	chmod +x "$CHRDIR$CHRSCRIPT" || return 1
 	
 	# Load chroot
-	chroot chroot "$CHRSCRIPT" --inside-chroot $*
+	chroot "$CHRDIR" "$CHRSCRIPT" --inside-chroot $*
 	CMDRESULT=$?
 	
 	# Unbind /dev from chroot envionment
@@ -97,7 +97,7 @@ function load_inside_chroot
 if [ "$1" == "--inside-chroot" ]; then
 	shift
 	load_inside_chroot $*
-elif [ -n "$1" ]
+elif [ -n "$1" ]; then
 	CHRDIR="$1/chroot"; shift
 	load_chroot "$CHRDIR" $*
 else
