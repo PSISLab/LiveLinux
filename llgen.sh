@@ -38,15 +38,15 @@ printf $(du -sx --block-size=1 "$CHRDIR" | cut -f1) > "$ISODIR/casper/filesystem
 
 # Create ISO
 cd "$ISODIR" || exit 1
-mkisofs -r -V "UbuntuRemix" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o "ubuntu-remix.iso" .
+#mkisofs -r -V "UbuntuRemix" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o "ubuntu-remix.iso" .
 cd "$CURDIR"
 
 # Create bootable image
 cd "$IMGDIR" || exit 1
-dd if=/dev/zero of=loop bs=1 count=1 seek=200M
+dd if=/dev/zero of=loop bs=1 count=1 seek=700M
 mkfs.ext2 -L rescue -m 0 loop
 
-ln -s "$ISMDIR" tmp
+ln -s "$ISODIR" tmp || exit 1
 mount -o loop loop mnt
 
 cp -a tmp/* mnt/
@@ -58,6 +58,6 @@ mv boot/extlinux/isolinux.cfg boot/extlinux/extlinux.conf
 extlinux --install boot/extlinux/
 cd ..
 umount mnt
-umount tmp
+rm tmp
 
 gzip -c loop > ubuntu-remix.img.gz
