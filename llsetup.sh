@@ -20,7 +20,8 @@ touch
 
 WDIR="$(cd "$1" && pwd)" || exit 1
 CHRDIR="$WDIR/chroot"
-IMGDIR="$WDIR/image"
+ISODIR="$WDIR/iso"
+IMGDIR="$WDIR/img"
 
 # Install debootstrap
 apt-get install --yes debootstrap || exit 1
@@ -48,8 +49,12 @@ fi
 "${CURDIR}/llchroot.sh" "$WDIR" apt-get install --yes ubuntu-standard casper lupin-casper discover laptop-detect os-prober linux-generic || exit 1
 "${CURDIR}/llchroot.sh" "$WDIR" apt-get install --yes --no-install-recommends network-manager || exit 1
 
+# Setup iso creation
+mkdir -p "$ISODIR"/{casper,isolinux,install} || exit 1
+
 # Setup image creation
-mkdir -p "$IMGDIR"/{casper,isolinux,install} || exit 1
+mkdir -p "$IMGDIR/mnt" || exit 1
+touch "$IMGDIR/loop" || exit 1
 
 # Generate default boot instructions
 printf '
@@ -60,7 +65,7 @@ This is an Ubuntu Remix Live CD.
 For the default live system, enter "live".  To run memtest86+, enter "memtest"
 
 ************************************************************************
-' > "$IMGDIR/isolinux/isolinux.txt"
+' > "$ISODIR/isolinux/isolinux.txt"
 
 # Generate default boot config
 printf 'DEFAULT live
@@ -92,7 +97,7 @@ PROMPT 1
 # or Caps Lock or Scroll lock is set (this is the default).
 # If  flag_val is 1, always display the "boot:" prompt.
 #  http://linux.die.net/man/1/syslinux   syslinux manpage
-' > "$IMGDIR/isolinux/isolinux.cfg"
+' > "$ISODIR/isolinux/isolinux.cfg"
 
 # Create diskdefines
 printf '#define DISKNAME  Ubuntu Remix
@@ -104,11 +109,11 @@ printf '#define DISKNAME  Ubuntu Remix
 #define DISKNUM1  1
 #define TOTALNUM  0
 #define TOTALNUM0  1
-' > "$IMGDIR/README.diskdefines"
+' > "$ISODIR/README.diskdefines"
 
-touch "$IMGDIR/ubuntu"
-mkdir "$IMGDIR/.disk"
-touch "$IMGDIR/.disk/base_installable"
-echo 'full_cd/single' > "$IMGDIR/.disk/cd_type"
-echo 'Ubuntu Remix' > "$IMGDIR/.disk/info"
-echo 'http://www.psislab.com' > "$IMGDIR/.disk/release_notes_url"
+touch "$ISODIR/ubuntu"
+mkdir "$ISODIR/.disk"
+touch "$ISODIR/.disk/base_installable"
+echo 'full_cd/single' > "$ISODIR/.disk/cd_type"
+echo 'Ubuntu Remix' > "$ISODIR/.disk/info"
+echo 'http://www.psislab.com' > "$ISODIR/.disk/release_notes_url"
