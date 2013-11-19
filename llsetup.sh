@@ -27,7 +27,7 @@ IMGDIR="$WDIR/img"
 apt-get install --yes debootstrap || exit 1
 
 # Install tools for creating iso
-apt-get install --yes netpbm syslinux squashfs-tools genisoimage || exit 1
+apt-get install --yes netpbm syslinux squashfs-tools genisoimage extlinux || exit 1
 
 function setup_chroot
 {
