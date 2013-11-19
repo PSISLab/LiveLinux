@@ -14,8 +14,9 @@ if [ -z "$1" ]; then
 fi
 
 # create working directory
-if [ -f "$1" ]; then echo "$1 already exists" && exit 1; fi
+if [ -d "$1" ]; then echo "$1 already exists" && exit 1; fi
 mkdir -p "$1" || exit 1
+touch 
 
 WDIR="$(cd "$1" && pwd)" || exit 1
 CHRDIR="$WDIR/chroot"
@@ -39,14 +40,16 @@ function setup_chroot
 }
 
 # Setup chroot
-setup_chroot || ( rm -rf "$CHRDIR" && exit 1 )
+if [ ! -d "$CHRDIR" ]; then
+	setup_chroot || ( rm -rf "$CHRDIR" && exit 1 )
+fi
 
 # Install mandatory packages
 "${CURDIR}/llchroot.sh" "$WDIR" apt-get install --yes ubuntu-standard casper lupin-casper discover laptop-detect os-prober linux-generic || exit 1
 "${CURDIR}/llchroot.sh" "$WDIR" apt-get install --yes --no-install-recommends network-manager || exit 1
 
 # Setup image creation
-mkdir -p "$IMGDIR/{casper,isolinux,install}" || exit 1
+mkdir -p "$IMGDIR"/{casper,isolinux,install} || exit 1
 
 # Generate default boot instructions
 printf '
