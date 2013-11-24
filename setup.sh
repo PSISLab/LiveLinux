@@ -12,7 +12,7 @@ fi
 apt-get install --yes debootstrap || exit 1
 
 # Install tools for creating iso
-apt-get install --yes netpbm syslinux squashfs-tools genisoimage extlinux || exit 1
+apt-get install --yes netpbm syslinux squashfs-tools genisoimage extlinux mbr || exit 1
 
 # Copy llm script
 cp "$CURDIR/llm.sh" "/usr/bin/llm" || exit 1

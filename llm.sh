@@ -16,12 +16,13 @@ function usage
 		echo "Usage: $0 <command> <target> [command args...]"
 		echo ""
 		echo "	Commands :"
-		echo "		$(usage_help)"
-		echo "		$(usage_setup)"
-		echo "		$(usage_chroot)"
-		echo "		$(usage_release)"
+		echo "		help $(usage_help)"
+		echo "		setup $(usage_setup)"
+		echo "		chroot $(usage_chroot)"
+		echo "		release $(usage_release)"
+		echo "		write $(usage_write)"
 	elif [ "$(type -t usage_$CMD)" == "function" ]; then
-		echo "Usage: $0 <target> $(usage_$CMD)"
+		echo "Usage: $0 <target> $CMD $(usage_$CMD)"
 	fi
 }
 
@@ -42,7 +43,7 @@ function cmd_help
 
 function usage_help
 {
-	echo "help [command]"
+	echo "[command]"
 }
 
 function help_help
@@ -59,7 +60,7 @@ function cmd_setup
 	
 	# Create target directory
 	mkdir -p "$TARGET" || exit 1
-	echo "0.0.1" > "$TARGET/version" || exit 2
+	echo "0.0.0" > "$TARGET/version" || exit 2
 	
 	# Bootstrap Ubuntu with same arch and release
 	mkdir -p "$CHRDIR" || return 2
@@ -157,7 +158,7 @@ function error_setup
 
 function usage_setup
 {
-	echo "setup [-f|--force]"
+	echo "[-f|--force]"
 }
 
 function cmd_chroot
@@ -262,11 +263,53 @@ function error_chroot
 
 function usage_chroot
 {
-	echo "chroot [cmd [args...]]"
+	echo "[cmd [args...]]"
 }
 
-function release_iso
+function cmd_release
 {
+	local iso=no
+	local img=no
+	
+	local major="$(cat "$TARGET/version" | awk -F. '{print $1}')"
+	local minor="$(cat "$TARGET/version" | awk -F. '{print $2}')"
+	local build="$(cat "$TARGET/version" | awk -F. '{print $3}')"
+	local version=
+	let build++
+	
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--iso)	iso=yes ;;
+			--img)	img=yes ;;
+			
+			--minor|-m)
+					let minor++
+					build=1
+					;;
+			
+			--major|-M)
+					let major++
+					minor=0
+					build=1
+					;;
+			
+			--version|-v)
+					shift
+					version="$1"
+					;;
+		esac
+		shift
+	done
+	
+	if [ -z "$version" ]; then
+		version="$major.$minor.$build"
+	fi
+	echo "$version" > "$TARGET/version"
+	
+	echo "ISO: $iso"
+	echo "IMG: $img"
+	echo "VERSION: $version"
+	
 	cp "$CHRDIR/boot/vmlinuz-"* "$IMGDIR/casper/vmlinuz" || exit 1
 	cp "$CHRDIR/boot/initrd.img-"* "$IMGDIR/casper/initrd.lz" || exit 1
 	cp "/usr/lib/syslinux/isolinux.bin" "$IMGDIR/isolinux/isolinux.bin" || exit 1
@@ -281,45 +324,60 @@ function release_iso
 
 	# Calculate MD5
 	(cd "$IMGDIR" && find . -type f -print0 | xargs -0 md5sum | grep -v "\./md5sum.txt" > "md5sum.txt") || exit 1
+	
+	if [ "$iso" == "yes" ]; then
+		# Create ISO
+		cd "$IMGDIR" || exit 1
+		mkisofs -r -V "UbuntuRemix" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o "$RELDIR/ubuntu-remix-$version.iso" .
+		cd -
+	fi
+	
+	if [ "$img" == "yes" ]; then
+		# Find free loopback device
+		local loop_device=
+		for loop_device in $(ls /dev/loop[0-9]); do
+			losetup "$loop_device" || break
+		done
+		
+		if [ -z "$loop_device" ]; then
+			return 1
+		fi
 
-	# Create ISO
-	cd "$IMGDIR" || exit 1
-	mkisofs -r -V "UbuntuRemix" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o "$RELDIR/ubuntu-remix.iso" .
-	cd "$CURDIR"
-}
+		dd if=/dev/zero of="$FACDIR/diskpart.sys" bs=1 count=0 seek=250M || return 1
+		losetup "$loop_device" "$FACDIR/diskpart.sys" || return 1
+		mkfs.ext2 -L "UbuntuRemix" -m 1 "$loop_device" || return 1
 
-function release_img
-{
-	cd "$FACDIR" || return 1
-	dd if=/dev/zero of=loop bs=1 count=1 seek=700M || return 1
-	mkfs.ext2 -L rescue -m 0 loop || return 1
+		mount "$loop_device" "$FACDIR/mnt" || return 1
 
-	ln -s "$IMGDIR" tmp || return 1
-	mount -o loop loop mnt || return 1
+		cp -a "$IMGDIR/"* "$FACDIR/mnt/" || return 1
 
-	cp -a tmp/* mnt/ || return 1
+		mkdir "$FACDIR/mnt/boot" || return 1
+		mv "$FACDIR/mnt/isolinux" "$FACDIR/mnt/boot/extlinux" || return 1
+		mv "$FACDIR/mnt/boot/extlinux/isolinux.cfg" "$FACDIR/mnt/boot/extlinux/extlinux.conf" || return 1
+		extlinux --install "$FACDIR/mnt/boot/extlinux/" || return 1
+		umount "$loop_device" || return 1
 
-	cd mnt || return 1
-	mkdir boot || return 1
-	mv isolinux boot/extlinux || return 1
-	mv boot/extlinux/isolinux.cfg boot/extlinux/extlinux.conf || return 1
-	extlinux --install boot/extlinux/ || return 1
-	cd .. || return 1
-	umount mnt || return 1
-	rm tmp || return 1
-
-	gzip -c loop > "$RELDIR/ubuntu-remix.img.gz" || return 1
-}
-
-function cmd_release
-{
-	release_iso
-	release_img
+		gzip -c "$loop_device" > "$RELDIR/ubuntu-remix-$version.img.gz" || return 1
+		losetup -d "$loop_device" || return 1
+	fi
 }
 
 function usage_release
 {
-	echo "release [--iso] [--img] [[-m|--minor]|[-M|--major]]"
+	echo "[--iso] [--img [-d|--device <device>]] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]"
+}
+
+function cmd_write
+{
+	local device="$1"
+	local version="$(cat "$TARGET/version")"
+	
+	zcat "$RELDIR/ubuntu-remix-$version.img.gz" > "$device"
+}
+
+function usage_write
+{
+	echo "[-v|--version <version>] device"
 }
 
 # ------------------------------------------------------------------------ #
