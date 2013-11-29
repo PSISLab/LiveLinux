@@ -8,6 +8,43 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+TARGET="$(readlink -m "$1")"; shift
+
+CHRDIR="$TARGET/root"
+IMGDIR="$TARGET/image"
+FACDIR="$TARGET/factory"
+RELDIR="$TARGET/releases"
+CNFDIR="$TARGET/conf"
+
+function self
+{
+	local CMD="$1"; shift
+	
+	if [ -z "$TARGET" ]; then
+		usage
+		return 1
+	elif [ -z "$CMD" ]; then
+		usage
+		return 1
+	elif [ "$(type -t cmd_$CMD)" == "function" ]; then
+		cmd_$CMD $*
+		RETVAL=$?
+		
+		if [ $RETVAL -ne 0 ] && [ "$(type -t error_$CMD)" == "function" ]; then
+			error_$CMD $RETVAL
+			RETVAL=$?
+		fi
+		
+		return $RETVAL
+	else
+		echo "Command invalid: $CMD"
+		echo
+		
+		usage
+		return 1
+	fi
+}
+
 function usage
 {
 	CMD="$1"
@@ -22,6 +59,7 @@ function usage
 		echo "		release $(usage_release)"
 		echo "		write $(usage_write)"
 		echo "		set $(usage_set)"
+		echo "		unset $(usage_unset)"
 		echo "		get $(usage_get)"
 	elif [ "$(type -t usage_$CMD)" == "function" ]; then
 		echo "Usage: $0 <target> $CMD $(usage_$CMD)"
@@ -57,12 +95,13 @@ function cmd_setup
 {
 	# Check target directory
 	if [ -f "$TARGET" ] || [ -d "$TARGET" ]; then
-		echo foo # echo "Target directory '$TARGET' already exists" && exit 1
+		echo "Target directory '$TARGET' already exists" && return 1
 	fi
 	
 	# Create target directory
-	mkdir -p "$TARGET" || exit 1
-	cmd_set version "0.0.0" || exit 2
+	mkdir -p "$TARGET" || return 1
+	mkdir -p "$CNFDIR" || return 1
+	cmd_set version "0.0.0" || return 2
 	
 	# Bootstrap Ubuntu with same arch and release
 	mkdir -p "$CHRDIR" || return 2
@@ -286,6 +325,16 @@ function cmd_release
 	fi
 	cmd_set version "$version" || return 1
 	
+	# Build vmlinuz
+	printf "# Auto-generated file
+export USERNAME="$(cmd_get username)"
+export USERFULLNAME="$(cmd_get username-full)"
+export HOST="$(cmd_get hostname)"
+export BUILD_SYSTEM="$(cmd_get title)"
+" > "$CHRDIR/etc/casper.conf" || return 1
+	self chroot depmod -a "$(cmd_get kernel)" || return 1
+	self chroot update-initramfs -u -k "$(cmd_get kernel)" || return 1
+	
 	cp "$CHRDIR/boot/vmlinuz-"* "$IMGDIR/casper/vmlinuz" || return 1
 	cp "$CHRDIR/boot/initrd.img-"* "$IMGDIR/casper/initrd.lz" || return 1
 	cp "/usr/lib/syslinux/isolinux.bin" "$IMGDIR/isolinux/isolinux.bin" || return 1
@@ -375,14 +424,11 @@ function cmd_set
 	local var="$1"
 	local value="$2"
 	
-	case "$var" in
-		version)
-			echo "$value" > "$TARGET/version" || return 1
-			;;
-		
-		*)	echo "Unknown var '$var'"
-			return 1
-	esac
+	if [ "$(type -t set_$var)" == "function" ]; then
+		set_$var "$value" || return 1
+	else
+		echo "$value" > "$CNFDIR/$var" || return 1
+	fi
 }
 
 function usage_set
@@ -390,22 +436,42 @@ function usage_set
 	echo "<var> <value>"
 }
 
+function cmd_unset
+{
+	local var="$1"
+	
+	if [ "$(type -t unset_$var)" == "function" ]; then
+		unset_$var || return 1
+	elif [ -f "$CNFDIR/$var" ]; then
+		rm "$CNFDIR/$var" || return 1
+	fi
+}
+
+function usage_unset
+{
+	echo "<var>"
+}
+
 function cmd_get
 {
 	local var="$1"
 	
-	case "$var" in
-		version)
-			cat "$TARGET/version" || return 1
-			;;
-		
-		title)
-			echo "LinuxLive" || return 1
-			;;
-		
-		*)	echo "Unknown var '$var'"
-			return 1
-	esac
+	if [ "$(type -t get_$var)" == "function" ]; then
+		get_$var || return 1
+	elif [ -f "$CNFDIR/$var" ]; then
+		cat "$CNFDIR/$var" || return 1
+	else
+		case "$var" in
+			version)		echo "0.0.0" || return 1 ;;
+			title)			echo "LinuxLive" || return 1 ;;
+			username)		echo "admin" || return 1 ;;
+			username-full)	echo "Administrator" || return 1 ;;
+			hostname)		echo "linuxlive" || return 1 ;;
+			
+			*)	echo "Unknown var '$var'"
+				return 1
+		esac
+	fi
 }
 
 function usage_get
@@ -415,38 +481,23 @@ function usage_get
 
 # ------------------------------------------------------------------------ #
 
+function set_version
+{
+	local value="$(echo "$1" | grep -x "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")"
+	
+	if [ -n "$value" ]; then
+		echo "$value" > "$CNFDIR/version" || return 1
+	else
+		return 1
+	fi
+}
 
+function get_kernel
+{
+	echo "$(cd $CHRDIR/boot && ls vmlinuz-* | sed 's@vmlinuz-@@')"
+}
 
 # ------------------------------------------------------------------------ #
 
-TARGET="$(readlink -m "$1")"; shift
-CMD="$1"; shift
-
-CHRDIR="$TARGET/root"
-IMGDIR="$TARGET/image"
-FACDIR="$TARGET/factory"
-RELDIR="$TARGET/releases"
-
-if [ -z "$TARGET" ]; then
-	usage
-	exit 1
-elif [ -z "$CMD" ]; then
-	usage
-	exit 1
-elif [ "$(type -t cmd_$CMD)" == "function" ]; then
-	cmd_$CMD $*
-	RETVAL=$?
-	
-	if [ $RETVAL -ne 0 ] && [ "$(type -t error_$CMD)" == "function" ]; then
-		error_$CMD $RETVAL
-		RETVAL=$?
-	fi
-	
-	exit $RETVAL
-else
-	echo "Command invalid: $CMD"
-	echo
-	
-	usage
-	exit 1
-fi
+self $*
+exit $?
