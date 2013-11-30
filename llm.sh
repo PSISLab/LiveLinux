@@ -213,6 +213,8 @@ DEBIAN_FRONTEND=noninteractive  apt-get install --yes --no-install-recommends ne
 	display step "Generate default isolinux"
 	touch "$IMGDIR/ubuntu" || return 2
 	mkdir "$IMGDIR/.disk" || return 2
+	
+	display success "Done"
 }
 
 function usage_setup

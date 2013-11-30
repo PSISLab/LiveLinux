@@ -3,23 +3,73 @@ LiveLinux
 
 Tools for creating live systems, inspired from [https://help.ubuntu.com/community/LiveCDCustomizationFromScratch](https://help.ubuntu.com/community/LiveCDCustomizationFromScratch)
 
-TODO
-----
+Installation
+------------
 
-### Configure auto-login
+	wget -O LiveLinux-0.1.tar.gz https://github.com/PSISLab/LiveLinux/archive/v0.1.tar.gz
+	tar xzf LiveLinux-0.1.tar.gz
+	sudo LiveLinux-0.1/setup.sh
 
-TO enable auto-login, set an admin user with `llm <target> set username <admin username>`. This user will be created at boot time.
+Utilisation
+-----------
 
-If you prefer, you can also create an admin user with a fixed password in the chroot environment but make sure there is no user with ID 999.
+`llm <target> <command> [command args...]`
 
-### Set keymap
+Commandes :
+* help [command]
+* setup
+* chroot [cmd [args...]]
+* release [--iso] [--img] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]
+* write [-v|--version <version>] device
+* set <var> <value>
+* get <var>
 
+### help
 
+Affiche l'aide
+
+### setup
+
+Initialise un espace de travail pour créer la distribution live.
+
+### chroot [cmd [args...]]
+
+Permet de lancer l'espace de travail (dans un chrot) pour pouvoir y apporter des modifications. Si une commande est spécifiée avec l'option `cmd [args...]`, alors cette commande est executée dans l'espace de travail.
+
+### release [--iso] [--img] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]
+
+Crée une image ISO ou une image disque de l'espace de travail. Il faut choisir au moins une option parmis `--iso` et `--img`, sinon aucune image n'est générée.
+
+Par défaut le numéro de build du projet est incrémenté de 1 avant de créer l'image. Cela peut être controlé avec les options suivantes :
+* `-m` ou `--minor` : Incrémente la version mineure du projet
+* `-M` ou `--major` : Incrémente la version majeur du projet
+* `--version` : Force la version du projet
+
+### write [-v|--version <version>] device
+
+Copie la dernière image disque sur le périfiérique spécifié. ATTENTION ! Aucune confirmation n'est demandée !
+
+L'option `-v` ou `--version` permet de choisir quelle image copier.
+
+HOWTO
+-----
+
+### Configurer le login automatique
+
+Pour activer le login automatique, il suffit de définir un utilisateur avec la commande `llm <target> set username <admin username>`. Cet utilisateur sera crée à chaque démarrage du système.
+Pour désactiver le login automatique, utiliser simplement `llm <target> unset username`
+
+Il est aussi possible de créer simplement un utilisateur avec la commande `llm <target> chroot adduser <username>`, ou bien de définir un mot de passe root.  Attention à ne pas créer d'utilisateur avec l'ID 999.
+
+### Changer la configuration clavier
+
+Simplement : `sudo llm <target> chroot dpkg-reconfigure keyboard-configuration`
 
 Roadmap
 -------
 
 * _Versions futures_ 1.x
+	* Installation de la version serveur par défaut
 	* Modifier le splash screen
 	* Création d'un paquet .deb
 	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
