@@ -3,10 +3,24 @@ LiveLinux
 
 Tools for creating live systems, inspired from [https://help.ubuntu.com/community/LiveCDCustomizationFromScratch](https://help.ubuntu.com/community/LiveCDCustomizationFromScratch)
 
+TODO
+----
+
+### Configure auto-login
+
+TO enable auto-login, set an admin user with `llm <target> set username <admin username>`. This user will be created at boot time.
+
+If you prefer, you can also create an admin user with a fixed password in the chroot environment but make sure there is no user with ID 999.
+
+### Set keymap
+
+
+
 Roadmap
 -------
 
 * _Versions futures_ 1.x
+	* Modifier le splash screen
 	* Création d'un paquet .deb
 	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
 	* Vérification du périférique de destination avec la commande `write`, pour éviter un désastre
@@ -23,6 +37,7 @@ Changelog
 ---------
 
 * _Version de développement_
+	* Possibilité de choisir la disposition du clavier au boot
 	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
 * Version __0.1__ (27/11/2013)
 	* Gestion des versions

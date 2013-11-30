@@ -35,14 +35,93 @@ function self
 			RETVAL=$?
 		fi
 		
+		if [ $RETVAL -ne 0 ]; then
+			display error "Failed with error $RETVAL"
+		fi
+		
 		return $RETVAL
 	else
-		echo "Command invalid: $CMD"
+		display error "Command invalid: $CMD"
 		echo
 		
 		usage
 		return 1
 	fi
+}
+
+function format
+{
+	# Based on http://misc.flogisoft.com/bash/tip_colors_and_formatting
+	
+	local mode=auto
+	local code=
+	local sep=
+	
+	echo -ne '\e['
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			default)
+				[ "$mode" == "auto" ] && code=0
+				[ "$mode" == "reset" ] && code=0
+				[ "$mode" == "fg" ] && code=39
+				[ "$mode" == "bg" ] && code=49
+				;;
+			
+			reset)				mode=reset ;;
+			fg|foreground|text)	mode=fg ;;
+			bg|background)		mode=bg ;;
+			
+			b|bold)			[ "$mode" == "reset" ] && code=21 || code=1; mode=auto ;;
+			dim)			[ "$mode" == "reset" ] && code=22 || code=2; mode=auto ;;
+			u|underlined)	[ "$mode" == "reset" ] && code=24 || code=4; mode=auto ;;
+			blink)			[ "$mode" == "reset" ] && code=25 || code=5; mode=auto ;;
+			reverse)		[ "$mode" == "reset" ] && code=27 || code=7; mode=auto ;;
+			hidden)			[ "$mode" == "reset" ] && code=28 || code=8; mode=auto ;;
+			
+			black)			[ "$mode" == "bg" ] && code=40 || code=30 ;;
+			white)			[ "$mode" == "bg" ] && code=107 || code=97 ;;
+			
+			red)			[ "$mode" == "bg" ] && code=41 || code=31 ;;
+			green)			[ "$mode" == "bg" ] && code=42 || code=32 ;;
+			yellow)			[ "$mode" == "bg" ] && code=43 || code=33 ;;
+			blue)			[ "$mode" == "bg" ] && code=44 || code=34 ;;
+			magenta)		[ "$mode" == "bg" ] && code=45 || code=35 ;;
+			cyan)			[ "$mode" == "bg" ] && code=46 || code=36 ;;
+			
+			light-gray)		[ "$mode" == "bg" ] && code=47 || code=37 ;;
+			dark-gray)		[ "$mode" == "bg" ] && code=100 || code=90 ;;
+			
+			light-red)		[ "$mode" == "bg" ] && code=101 || code=91 ;;
+			light-green)	[ "$mode" == "bg" ] && code=102 || code=92 ;;
+			light-yellow)	[ "$mode" == "bg" ] && code=103 || code=93 ;;
+			light-blue)		[ "$mode" == "bg" ] && code=104 || code=94 ;;
+			light-magenta)	[ "$mode" == "bg" ] && code=105 || code=95 ;;
+			light-cyan)		[ "$mode" == "bg" ] && code=106 || code=96 ;;
+		esac
+		
+		if [ -n "$code" ]; then
+			echo -n "$sep$code" && sep=";"
+			[ $code -eq 0 ] && break
+		fi
+		
+		shift
+	done
+	echo -n 'm'
+}
+
+function display
+{
+	local type="$1"
+	shift
+	
+	case "$type" in
+		step)		format cyan && echo "* $*" ;;
+		success)	format bold green && echo "> $*" ;;
+		error)		format bold white bg red && echo "! $*  " ;;
+	esac
+	
+	format default
+	format dark-gray
 }
 
 function usage
@@ -93,85 +172,47 @@ function help_help
 
 function cmd_setup
 {
-	# Check target directory
+	display step "Check target directory"
 	if [ -f "$TARGET" ] || [ -d "$TARGET" ]; then
-		echo "Target directory '$TARGET' already exists" && return 1
+		display error "Target directory '$TARGET' already exists" && return 1
 	fi
 	
-	# Create target directory
+	display step "Create target directory"
 	mkdir -p "$TARGET" || return 1
 	mkdir -p "$CNFDIR" || return 1
 	cmd_set version "0.0.0" || return 2
 	
-	# Bootstrap Ubuntu with same arch and release
+	display step "Bootstrap Ubuntu with same arch and release as host"
 	mkdir -p "$CHRDIR" || return 2
 	RELEASE="$(lsb_release -sc)" || return 2
 	DEBIAN_FRONTEND=noninteractive debootstrap "$RELEASE" "$CHRDIR" || return 2
 	
-	# Copy apt sources.list configuration
+	display step "Copy apt sources.list configuration"
 	cp "/etc/apt/sources.list" "$CHRDIR/etc/apt/sources.list" || return 2
 
-	# Install mandatory packages
-	echo "#!/bin/bash
+	display step "Install mandatory packages in chroot"
+	printf '#!/bin/bash
+echo -n '$(format default)'
+echo -n '$(format dark-gray)'
 DEBIAN_FRONTEND=noninteractive  apt-get install --yes ubuntu-standard casper lupin-casper discover laptop-detect os-prober linux-generic || exit 1
 DEBIAN_FRONTEND=noninteractive  apt-get install --yes --no-install-recommends network-manager || exit 1
-" > "$CHRDIR/tmp/init-chroot.sh" || return 2
+' > "$CHRDIR/tmp/init-chroot.sh" || return 2
 	chmod +x "$CHRDIR/tmp/init-chroot.sh" || return 2
 	cmd_chroot /tmp/init-chroot.sh || error_chroot $? || return 2
 
-	# Setup image creation
+	display step "Setup image directory"
 	mkdir -p "$IMGDIR"/{casper,isolinux,install} || return 2
 	
-	# Setup release storage
+	display step "Setup release storage directory"
 	mkdir -p "$RELDIR" || return 2
 
-	# Setup release creation
+	display step "Setup release creation directory"
 	mkdir -p "$FACDIR/mnt" || return 2
 	touch "$FACDIR/loop" || return 2
 
-	# Generate default boot instructions
-	printf "Starting $(cmd_get title)...
-" > "$IMGDIR/isolinux/isolinux.txt" || return 2
-
-	# Generate default boot config
-	printf 'DEFAULT boot
-LABEL boot
-  menu label ^Start $(cmd_get title)
-  kernel /casper/vmlinuz
-  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --
-LABEL check
-  menu label ^Check disk for defects
-  kernel /casper/vmlinuz
-  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --
-LABEL memtest
-  menu label ^Memory test
-  kernel /install/memtest
-  append -
-
-DISPLAY isolinux.txt
-TIMEOUT 30
-PROMPT 0 
-' > "$IMGDIR/isolinux/isolinux.cfg" || return 2
-
-	# Create diskdefines
-	printf "#define DISKNAME  $(cmd_get title)
-#define TYPE  binary
-#define TYPEbinary  1
-#define ARCH  amd64
-#define ARCHamd64  1
-#define ARCHi386  0
-#define DISKNUM  1
-#define DISKNUM1  1
-#define TOTALNUM  0
-#define TOTALNUM0  1
-" > "$IMGDIR/README.diskdefines" || return 2
-
+	display step "Generate default isolinux"
 	touch "$IMGDIR/ubuntu" || return 2
 	mkdir "$IMGDIR/.disk" || return 2
-	#touch "$IMGDIR/.disk/base_installable" || return 2
-	echo 'full_cd/single' > "$IMGDIR/.disk/cd_type" || return 2
-	echo "$(cmd_get title)" > "$IMGDIR/.disk/info" || return 2
-	#echo 'http://www.psislab.com' > "$IMGDIR/.disk/release_notes_url" || return 2
 }
 
 function usage_setup
@@ -183,46 +224,49 @@ function cmd_chroot
 {
 	local CHRSCRIPT="/tmp/load-chroot.sh"
 	
-	# Bind /dev to chroot environment
+	display step "Bind /dev to chroot environment"
 	mount --bind "/dev" "$CHRDIR/dev" || return 1
 	
-	# Copy network configuration
+	display step "Copy network configuration"
 	cp "$CHRDIR/etc/hosts" "$CHRDIR/etc/hosts~" || return 2
 	cp "/etc/hosts" "$CHRDIR/etc/hosts" || return 2
 	cp "/etc/resolv.conf" "$CHRDIR/etc/resolv.conf" || return 2
 	
-	# Write script to chroot
-	printf '
+	display step "Write init script to chroot"
+	printf '#!/bin/bash
 trap "" 2
 
 # Mount /proc, /sys and /dev/pts
-mount none -t proc /proc || return 1
-mount none -t sysfs /sys || return 1
-mount none -t devpts /dev/pts || return 1
+mount none -t proc /proc || exit 1
+mount none -t sysfs /sys || exit 1
+mount none -t devpts /dev/pts || exit 1
 
 # Export some environment variables
 export HOME=/root
 export LC_ALL=C
 
 # Add PSISLab PPA Key
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B6AC35BA || return 1
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B6AC35BA || exit 1
 
 # Install dbus if needed
-dpkg -s dbus >/dev/null || ( apt-get update && apt-get install --yes dbus ) || return 1
+dpkg -s dbus >/dev/null || ( apt-get update && apt-get install --yes dbus ) || exit 1
 
 # Create new machine ID
-dbus-uuidgen > /var/lib/dbus/machine-id || return 1
+dbus-uuidgen > /var/lib/dbus/machine-id || exit 1
 
 # Create diversion
-dpkg-divert --local --rename --add /sbin/initctl && ln -s /bin/true /sbin/initctl || return 1
+dpkg-divert --local --rename --add /sbin/initctl && ln -s /bin/true /sbin/initctl || exit 1
 
 # Load shell or command
 trap 2
+echo -n '$(format default)'
 if [ $# -gt 0 ]; then
 	$*
 else
 	${SHELL} -i
 fi
+echo -n '$(format default)'
+echo -n '$(format dark-gray)'
 
 CMDRESULT=$?
 CLEANERROR=0
@@ -247,20 +291,20 @@ umount -lf /dev/pts || CLEANERROR=1
 trap 2
 
 if [ $CMDRESULT -ne 0 ]; then
-	return 2
+	exit 2
 elif [ $CLEANERROR -ne 0 ]; then
-	return 1
+	exit 1
 else
-	return 0
+	exit 0
 fi
 ' > "$CHRDIR$CHRSCRIPT" || return 2
 	chmod +x "$CHRDIR$CHRSCRIPT" || return 2
 	
-	# Load chroot
+	display step "Load chroot"
 	chroot "$CHRDIR" "$CHRSCRIPT" $*
 	local CMDRESULT=$?
 	
-	# Unbind /dev from chroot envionment
+	display step "Unbind /dev from chroot envionment"
 	umount -l "$CHRDIR/dev" || return 1
 	
 	return $(expr $CMDRESULT + 4)
@@ -323,9 +367,50 @@ function cmd_release
 	if [ -z "$version" ]; then
 		version="$major.$minor.$build"
 	fi
+	display step "Set version to $version"
 	cmd_set version "$version" || return 1
+
+	display step "Generate isolinux boot config"
+	echo "Starting $(cmd_get title)..." > "$IMGDIR/isolinux/isolinux.txt" || return 2
+	echo "DEFAULT boot
+LABEL boot
+  menu label ^Start $(cmd_get title)
+  kernel /casper/vmlinuz
+  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --
+LABEL check
+  menu label ^Check disk for defects
+  kernel /casper/vmlinuz
+  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --
+LABEL memtest
+  menu label ^Memory test
+  kernel /install/memtest
+  append -
+
+DISPLAY isolinux.txt
+TIMEOUT 30
+PROMPT 0 
+" > "$IMGDIR/isolinux/isolinux.cfg" || return 2
+
+	display step "Create diskdefines"
+	echo "#define DISKNAME  $(cmd_get title)
+#define TYPE  binary
+#define TYPEbinary  1
+#define ARCH  amd64
+#define ARCHamd64  1
+#define ARCHi386  0
+#define DISKNUM  1
+#define DISKNUM1  1
+#define TOTALNUM  0
+#define TOTALNUM0  1
+" > "$IMGDIR/README.diskdefines" || return 2
+
+	display step "Create ISO disk infos"
+	#touch "$IMGDIR/.disk/base_installable" || return 2
+	echo "full_cd/single" > "$IMGDIR/.disk/cd_type" || return 2
+	echo "$(cmd_get title)" > "$IMGDIR/.disk/info" || return 2
+	#echo 'http://www.psislab.com' > "$IMGDIR/.disk/release_notes_url" || return 2
 	
-	# Build vmlinuz
+	display step "Build vmlinuz"
 	printf "# Auto-generated file
 export USERNAME="$(cmd_get username)"
 export USERFULLNAME="$(cmd_get username-full)"
@@ -335,28 +420,28 @@ export BUILD_SYSTEM="$(cmd_get title)"
 	self chroot depmod -a "$(cmd_get kernel)" || return 1
 	self chroot update-initramfs -u -k "$(cmd_get kernel)" || return 1
 	
-	cp "$CHRDIR/boot/vmlinuz-"* "$IMGDIR/casper/vmlinuz" || return 1
-	cp "$CHRDIR/boot/initrd.img-"* "$IMGDIR/casper/initrd.lz" || return 1
+	cp "$CHRDIR/boot/vmlinuz-$(cmd_get kernel)" "$IMGDIR/casper/vmlinuz" || return 1
+	cp "$CHRDIR/boot/initrd.img-$(cmd_get kernel)" "$IMGDIR/casper/initrd.lz" || return 1
 	cp "/usr/lib/syslinux/isolinux.bin" "$IMGDIR/isolinux/isolinux.bin" || return 1
 	cp "/boot/memtest86+.bin" "$IMGDIR/install/memtest" || return 1
 
-	# Create manifest
+	display step "Create manifest"
 	chroot "$CHRDIR" dpkg-query -W --showformat='${Package} ${Version}\n' > "$IMGDIR/casper/filesystem.manifest" || return 1
 
-	# Compress the chroot
+	display step "Compress the chroot"
 	mksquashfs "$CHRDIR" "$IMGDIR/casper/filesystem.squashfs" -noappend -e boot || return 1
 	printf $(du -sx --block-size=1 "$CHRDIR" | cut -f1) > "$IMGDIR/casper/filesystem.size" || return 1
 
-	# Calculate MD5
+	display step "Calculate MD5"
 	(cd "$IMGDIR" && find . -type f -print0 | xargs -0 md5sum | grep -v "\./md5sum.txt" > "md5sum.txt") || return 1
 	
 	if [ "$iso" == "yes" ]; then
-		# Create ISO
-		mkisofs -r -V "UbuntuRemix" -cache-inodes -J -l -b "$IMGDIR/isolinux/isolinux.bin" -c "$IMGDIR/isolinux/boot.cat" -no-emul-boot -boot-load-size 4 -boot-info-table -o "$RELDIR/ubuntu-remix-$version.iso" "$IMGDIR" || return 1
+		display step "Create ISO"
+		mkisofs -r -V "$(cmd_get title)" -cache-inodes -J -l -b "$IMGDIR/isolinux/isolinux.bin" -c "$IMGDIR/isolinux/boot.cat" -no-emul-boot -boot-load-size 4 -boot-info-table -o "$RELDIR/$(cmd_get title)-$version.iso" "$IMGDIR" || return 1
 	fi
 	
 	if [ "$img" == "yes" ]; then
-		# Find free loopback device
+		display step "Find free loopback device"
 		local loop_device=
 		for loop_device in $(ls /dev/loop[0-9]); do
 			losetup "$loop_device" || break
@@ -368,22 +453,29 @@ export BUILD_SYSTEM="$(cmd_get title)"
 			return 1
 		fi
 
+		display step "Create system partition"
 		dd if=/dev/zero of="$FACDIR/diskpart.sys" bs=1 count=0 seek=350M || return 1
 		losetup "$loop_device" "$FACDIR/diskpart.sys" || return 1
-		mkfs.ext2 -L "UbuntuRemix" -m 1 "$loop_device" || return 2
+		
+		display step "Format system partition"
+		mkfs.ext2 -L "$(cmd_get title)" -m 1 "$loop_device" || return 2
 
+		display step "Copy system files"
 		mount "$loop_device" "$FACDIR/mnt" || return 2
-
 		cp -a "$IMGDIR/"* "$FACDIR/mnt/" || return 3
 
+		display step "Setup extlinux boot"
 		mkdir "$FACDIR/mnt/boot" || return 3
 		mv "$FACDIR/mnt/isolinux" "$FACDIR/mnt/boot/extlinux" || return 3
 		mv "$FACDIR/mnt/boot/extlinux/isolinux.cfg" "$FACDIR/mnt/boot/extlinux/extlinux.conf" || return 3
 		extlinux --install "$FACDIR/mnt/boot/extlinux/" || return 1
 		umount "$loop_device" || return 2
 
-		gzip -c "$loop_device" > "$RELDIR/ubuntu-remix-$version.img.gz" || return 2
+		display step "Export image to $RELDIR/$(cmd_get title)-$version.img.gz"
+		gzip -c "$loop_device" > "$RELDIR/$(cmd_get title)-$version.img.gz" || return 2
 		losetup -d "$loop_device" || return 1
+		
+		display success "Done"
 	fi
 }
 
@@ -411,7 +503,10 @@ function cmd_write
 	local device="$1"
 	local version="$(cmd_get version)"
 	
-	zcat "$RELDIR/ubuntu-remix-$version.img.gz" > "$device"
+	display step "Write image '$RELDIR/$(cmd_get title)-$version.img.gz' to '$device'"
+	zcat "$RELDIR/$(cmd_get title)-$version.img.gz" > "$device"
+	
+	display success "Done"
 }
 
 function usage_write
@@ -464,11 +559,11 @@ function cmd_get
 		case "$var" in
 			version)		echo "0.0.0" || return 1 ;;
 			title)			echo "LinuxLive" || return 1 ;;
-			username)		echo "admin" || return 1 ;;
+			username)		echo "" || return 1 ;;
 			username-full)	echo "Administrator" || return 1 ;;
 			hostname)		echo "linuxlive" || return 1 ;;
 			
-			*)	echo "Unknown var '$var'"
+			*)	display error "Unknown var '$var'"
 				return 1
 		esac
 	fi
@@ -483,11 +578,12 @@ function usage_get
 
 function set_version
 {
-	local value="$(echo "$1" | grep -x "[[:digit:]]\.[[:digit:]]\.[[:digit:]]")"
+	local value="$(echo "$1" | grep -x '[0-9]\+\.[0-9]\+\.[0-9]\+')"
 	
 	if [ -n "$value" ]; then
 		echo "$value" > "$CNFDIR/version" || return 1
 	else
+		display error "Bad format for version: '$1', must be a sequence of 3 dot-separated digits"
 		return 1
 	fi
 }
@@ -499,5 +595,7 @@ function get_kernel
 
 # ------------------------------------------------------------------------ #
 
+format default
 self $*
+format default
 exit $?
