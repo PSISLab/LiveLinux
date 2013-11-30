@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # This file is part of LiveLinuxMaker,
-# Copyright 2013 Jonathan GIRARD-YEL
+# Copyright 2013 Jonathan GIRARD-YEL <jonathan.girardyel@free.fr>
 #
 # LiveLinuxMaker is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
