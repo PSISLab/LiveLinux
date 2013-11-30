@@ -56,10 +56,11 @@ HOWTO
 
 ### Configurer le login automatique
 
-Pour activer le login automatique, il suffit de définir un utilisateur avec la commande `llm <target> set username <admin username>`. Cet utilisateur sera crée à chaque démarrage du système.
-Pour désactiver le login automatique, utiliser simplement `llm <target> unset username`
+Pour activer le login automatique d'un utilisateur, il faut utiliser la commande `llm <target> set autologin <username>`.
+L'utilisateur doit exister. Il est par exemple possible de le créer avec la commande `llm <target> chroot adduser <username>`. 
+Attention à ne pas créer d'utilisateur avec l'ID 999.
 
-Il est aussi possible de créer simplement un utilisateur avec la commande `llm <target> chroot adduser <username>`, ou bien de définir un mot de passe root.  Attention à ne pas créer d'utilisateur avec l'ID 999.
+Pour désactiver le login automatique, utiliser simplement `llm <target> unset autologin`
 
 ### Changer la configuration clavier
 
