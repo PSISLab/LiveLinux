@@ -1,4 +1,20 @@
 #!/bin/bash
+#
+# This file is part of LiveLinuxMaker,
+# Copyright 2013 Jonathan GIRARD-YEL
+#
+# LiveLinuxMaker is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# LiveLinuxMaker is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with LiveLinuxMaker.  If not, see <http://www.gnu.org/licenses/>.
 
 CURDIR="$(cd `dirname $0` && pwd)"
 
@@ -333,7 +349,9 @@ function usage_chroot
 function cmd_release
 {
 	local iso=no
+	
 	local img=no
+	local write_device=
 	
 	local version="$(cmd_get version)" || return 1
 	local major="$(echo "$version" | awk -F. '{print $1}')" || return 1
@@ -345,7 +363,12 @@ function cmd_release
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--iso)	iso=yes ;;
+			
 			--img)	img=yes ;;
+			--write)
+					shift
+					write_device="$1"
+					;;
 			
 			--minor|-m)
 					let minor++
@@ -466,7 +489,7 @@ export BUILD_SYSTEM="$(cmd_get title)"
 		mount "$loop_device" "$FACDIR/mnt" || return 2
 		cp -a "$IMGDIR/"* "$FACDIR/mnt/" || return 3
 
-		display step "Setup extlinux boot"
+		display step "Setup extlinux"
 		mkdir "$FACDIR/mnt/boot" || return 3
 		mv "$FACDIR/mnt/isolinux" "$FACDIR/mnt/boot/extlinux" || return 3
 		mv "$FACDIR/mnt/boot/extlinux/isolinux.cfg" "$FACDIR/mnt/boot/extlinux/extlinux.conf" || return 3
@@ -477,8 +500,12 @@ export BUILD_SYSTEM="$(cmd_get title)"
 		gzip -c "$loop_device" > "$RELDIR/$(cmd_get title)-$version.img.gz" || return 2
 		losetup -d "$loop_device" || return 1
 		
-		display success "Done"
+		if [ -n "$write_device" ]; then
+			self write "$write_device" || return 1
+		fi
 	fi
+	
+	display success "Done"
 }
 
 function error_release
@@ -497,7 +524,7 @@ function error_release
 
 function usage_release
 {
-	echo "[--iso] [--img] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]"
+	echo "[--iso] [--img [--write <device>]] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]"
 }
 
 function cmd_write
@@ -505,8 +532,23 @@ function cmd_write
 	local device="$1"
 	local version="$(cmd_get version)"
 	
-	display step "Write image '$RELDIR/$(cmd_get title)-$version.img.gz' to '$device'"
-	zcat "$RELDIR/$(cmd_get title)-$version.img.gz" > "$device"
+	display step "Check device $device"
+	if [ ! -b "$device" ]; then
+		display error "Device '$device' does not exists or is not a block device"
+		return 1
+	elif mount | grep "^$device on .*$"; then
+		display error "Device '$device' is already mounted"
+		return 1
+	fi
+	
+	display step "Check source file"
+	if [ ! -f "$RELDIR/$(cmd_get title)-$version.img.gz" ]; then
+		display error "No image found for the version $version"
+		return 1
+	fi
+	
+	display step "Write image $version to '$device'"
+	zcat "$RELDIR/$(cmd_get title)-$version.img.gz" > "$device" || return 1
 	
 	display success "Done"
 }
