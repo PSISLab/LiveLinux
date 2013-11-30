@@ -36,9 +36,10 @@ Initialise un espace de travail pour créer la distribution live.
 
 Permet de lancer l'espace de travail (dans un chrot) pour pouvoir y apporter des modifications. Si une commande est spécifiée avec l'option `cmd [args...]`, alors cette commande est executée dans l'espace de travail.
 
-### release [--iso] [--img] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]
+### release [--iso] [--img [--write <device>]] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]
 
 Crée une image ISO ou une image disque de l'espace de travail. Il faut choisir au moins une option parmis `--iso` et `--img`, sinon aucune image n'est générée.
+Il est aussi possible d'utiliser l'option `--write <device>` conjointement à `--img` afin de copier l'image disque générée sur le disque spécifié (voir la commande `write`).
 
 Par défaut le numéro de build du projet est incrémenté de 1 avant de créer l'image. Cela peut être controlé avec les options suivantes :
 * `-m` ou `--minor` : Incrémente la version mineure du projet
@@ -57,14 +58,14 @@ HOWTO
 ### Configurer le login automatique
 
 Pour activer le login automatique d'un utilisateur, il faut utiliser la commande `llm <target> set autologin <username>`.
-L'utilisateur doit exister. Il est par exemple possible de le créer avec la commande `llm <target> chroot adduser <username>`. 
-Attention à ne pas créer d'utilisateur avec l'ID 999.
+
+L'utilisateur doit exister. Il est par exemple possible de le créer avec la commande `llm <target> chroot adduser <username>`.
 
 Pour désactiver le login automatique, utiliser simplement `llm <target> unset autologin`
 
 ### Changer la configuration clavier
 
-Simplement : `sudo llm <target> chroot dpkg-reconfigure keyboard-configuration`
+Utiliser la commande `llm <target> chroot dpkg-reconfigure keyboard-configuration`
 
 Roadmap
 -------
