@@ -6,9 +6,9 @@ Tools for creating live systems, inspired from [https://help.ubuntu.com/communit
 Installation
 ------------
 
-	wget -O LiveLinux-0.1.tar.gz https://github.com/PSISLab/LiveLinux/archive/v0.1.tar.gz
-	tar xzf LiveLinux-0.1.tar.gz
-	sudo LiveLinux-0.1/setup.sh
+	wget -O LiveLinux-0.2.tar.gz https://github.com/PSISLab/LiveLinux/archive/v0.2.tar.gz
+	tar xzf LiveLinux-0.2.tar.gz
+	sudo LiveLinux-0.2/setup.sh
 
 Utilisation
 -----------
@@ -74,12 +74,9 @@ Roadmap
 	* Installation de la version serveur par défaut
 	* Modifier le splash screen
 	* Création d'un paquet .deb
-	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
-	* Vérification du périférique de destination avec la commande `write`, pour éviter un désastre
 	* Gérer le partitionnement de l'image
 	* Gérer un volume persistant privé
 	* Gérer les mises à jour du système/firmware
-	* Calcul automatique de la taille de l'image nécessaire
 	* Ecrire la version avant de générer l'image
 * _Versions futures_ 2.x
 	* Restaurer une version packagée, ou importer une image ISO
@@ -89,6 +86,10 @@ Changelog
 ---------
 
 * _Version de développement_
+* Version __0.2__ (01/12/2013)
+	* Calcul automatique de la taille de l'image nécessaire
+	* Vérification du périférique de destination avec la commande `write`, pour éviter un désastre
+	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
 	* Possibilité de choisir la disposition du clavier au boot
 	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
 * Version __0.1__ (27/11/2013)
