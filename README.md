@@ -89,9 +89,9 @@ Changelog
 * Version __0.2__ (01/12/2013)
 	* Calcul automatique de la taille de l'image nécessaire
 	* Vérification du périférique de destination avec la commande `write`, pour éviter un désastre
-	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
 	* Possibilité de choisir la disposition du clavier au boot
 	* Possibilité de modifier les paramètres Casper (login, hostname, ect)
+	* GPL V3
 * Version __0.1__ (27/11/2013)
 	* Gestion des versions
 	* Manipulation de variables avec les commandes `set` et `get`
