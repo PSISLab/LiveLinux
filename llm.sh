@@ -144,6 +144,7 @@ function usage
 {
 	CMD="$1"
 	
+	format default
 	if [ -z "$CMD" ]; then
 		echo "Usage: $0 <target> <command> [command args...]"
 		echo ""
@@ -152,6 +153,7 @@ function usage
 		echo "		setup $(usage_setup)"
 		echo "		chroot $(usage_chroot)"
 		echo "		release $(usage_release)"
+		echo "		releases $(usage_releases)"
 		echo "		write $(usage_write)"
 		echo "		set $(usage_set)"
 		echo "		unset $(usage_unset)"
@@ -541,6 +543,20 @@ function error_release
 function usage_release
 {
 	echo "[--iso] [--img [--write <device>]] [[-m|--minor]|[-M|--major]|[-v|--version <major.minor.build>]"
+}
+
+function cmd_releases
+{
+	local release=
+	
+	for release in $(ls "$RELDIR"); do
+		echo "$release" | grep -o "[[:digit:]]\+.[[:digit:]]\+.[[:digit:]]\+.\(iso\|img.gz\)$"
+	done
+}
+
+function usage_releases
+{
+	echo "releases"
 }
 
 function cmd_write

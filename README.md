@@ -1,5 +1,5 @@
-LiveLinux
-=========
+LiveLinuxMaker
+==============
 
 Tool for creating live linux system.
 (See also [LiveCDCustomizationFromScratch](https://help.ubuntu.com/community/LiveCDCustomizationFromScratch)).
@@ -24,12 +24,15 @@ Commandes disponibles :
 * setup : Initialise un espace de travail 
 * chroot : Lance l'espace de travail (dans un chrot) pour pouvoir y apporter des modifications
 * release : Crée une image ISO ou une image disque de l'espace de travail
+* releases : Affiche la liste des images crées
 * write : Copie la l'image disque sur un disque
 * set : Définit une variable de configuration
 * unset : Supprime une variable de configuration
 * get : Lit une variable de configuration
 
-Détails :
+
+Détail des commandes
+--------------------
 
 ### **help** : Affiche l'aide
 
@@ -61,6 +64,10 @@ Par défaut le numéro de build du projet est incrémenté de 1 avant de créer 
 * `-m` ou `--minor` : Incrémente la version mineure du projet
 * `-M` ou `--major` : Incrémente la version majeur du projet
 * `--version` : Force la version du projet
+
+### **releases** : Affiche la liste des images crées
+
+Utilisation : `llm <target> releases`
 
 ### **write** : Copie la l'image disque sur un disque
 
