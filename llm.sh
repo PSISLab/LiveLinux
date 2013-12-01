@@ -436,10 +436,12 @@ PROMPT 0
 	echo "$(cmd_get title)" > "$IMGDIR/.disk/info" || return 1
 	#echo 'http://www.psislab.com' > "$IMGDIR/.disk/release_notes_url" || return 1
 	
-	display step "Check autologin username"
-	if ! grep -x "^$(self get autologin):.*$" "$CHRDIR/etc/shadow" ; then
-		display error "Username '$(self get autologin)' does not exists"
-		return 1
+	if [ -n "$(self get autologin)" ]; then
+		display step "Check autologin username"
+		if ! grep -x "^$(self get autologin):.*$" "$CHRDIR/etc/shadow" ; then
+			display error "Username '$(self get autologin)' does not exists"
+			return 1
+		fi
 	fi
 	
 	display step "Build vmlinuz"
